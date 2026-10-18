@@ -609,11 +609,16 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			pr_debug("Sensor has already powered-off.\n");
 		} else {
 			pr_err("Sensor try do powered-off.\n");
-			disable_regulator_3V3();
+			status = disable_regulator_3V3();
+			if (status) {
+				dev_err(&gf_dev->spi->dev,
+					"disable regulator failed: %d\n", status);
+				retval = status;
+				break;
+			}
 			gf_power_off(gf_dev);
+			gf_dev->device_available = 0;
 		}
-
-		gf_dev->device_available = 0;
 		break;
 
 	case GF_IOC_ENTER_SLEEP_MODE:
