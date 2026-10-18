@@ -622,13 +622,21 @@ static int device_prepare(struct fpc1020_data *fpc1020, bool enable)
 
 		if (power_cfg == 0) {
 			pr_info("Try to enable fp_vdd_vreg\n");
-			vreg = regulator_get(dev, "fp_vdd_vreg");
+			/*
+			 * Keep the handle across power cycles; re-getting it on
+			 * every enable would overwrite the pointer and leak the
+			 * previous consumer reference.
+			 */
+			if (!vreg) {
+				vreg = regulator_get(dev, "fp_vdd_vreg");
 
-			if (IS_ERR(vreg)) {
-				rc = PTR_ERR(vreg);
-				vreg = NULL;
-				dev_err(dev, "fp_vdd_vreg unavailable: %d\n", rc);
-				goto exit;
+				if (IS_ERR(vreg)) {
+					rc = PTR_ERR(vreg);
+					vreg = NULL;
+					dev_err(dev, "fp_vdd_vreg unavailable: %d\n",
+						rc);
+					goto exit;
+				}
 			}
 
 			if (regulator_is_enabled(vreg)) {
