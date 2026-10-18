@@ -121,14 +121,26 @@ static int enable_regulator_3V3(struct device *dev)
 	int rc = 0;
 	//struct regulator *vreg;
 	mutex_lock(&regulator_ocp_lock);
-	p_3v3_vreg = devm_regulator_get(dev, "l6c_vdd");
-	if (IS_ERR(p_3v3_vreg)) {
-		pr_err("fp %s: no of vreg found\n", __func__);
+	/*
+	 * The rail is described by DT (l6c_vdd-supply).  Use the optional
+	 * lookup so a missing supply fails this ioctl cleanly instead of
+	 * turning into a probe deferral, and never treat "no rail" as a
+	 * successful power-up.
+	 */
+	p_3v3_vreg = devm_regulator_get_optional(dev, "l6c_vdd");
+	if (!p_3v3_vreg) {
+		dev_err(dev, "fp %s: l6c_vdd supply is missing\n", __func__);
 		mutex_unlock(&regulator_ocp_lock);
-		return PTR_ERR(p_3v3_vreg);
-	} else {
-		pr_err("fp %s: of vreg successful found\n", __func__);
+		return -ENODEV;
 	}
+	if (IS_ERR(p_3v3_vreg)) {
+		rc = PTR_ERR(p_3v3_vreg);
+		p_3v3_vreg = NULL;
+		dev_err(dev, "fp %s: failed to get l6c_vdd: %d\n", __func__, rc);
+		mutex_unlock(&regulator_ocp_lock);
+		return rc;
+	}
+	dev_dbg(dev, "fp %s: l6c_vdd supply found\n", __func__);
 
 #if 0
     rc = regulator_set_voltage(vreg, 3300000, 3300000);
@@ -156,7 +168,9 @@ static int enable_regulator_3V3(struct device *dev)
 
 	rc = regulator_enable(p_3v3_vreg);
 	if (rc) {
-		dev_err(dev, "fp %s: enable voltage failed\n", __func__);
+		dev_err(dev, "fp %s: enable voltage failed: %d\n", __func__, rc);
+		devm_regulator_put(p_3v3_vreg);
+		p_3v3_vreg = NULL;
 		mutex_unlock(&regulator_ocp_lock);
 		return rc;
 	}
@@ -570,15 +584,22 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			pr_debug("Sensor has already powered-on.\n");
 		} else {
 			status = enable_regulator_3V3(&gf_dev->spi->dev);
-			pr_err("p_3v3_vreg 001 = %p\n", p_3v3_vreg);
-			if(status) {
-				pr_err("enable regulator failed and disable it.\n");
+			if (status) {
+				pr_err("enable regulator failed: %d\n", status);
 				disable_regulator_3V3();
+				retval = status;
+				break;
 			}
-			gf_power_on(gf_dev);
+			status = gf_power_on(gf_dev);
+			if (status) {
+				dev_err(&gf_dev->spi->dev,
+					"power-on sequence failed: %d\n", status);
+				disable_regulator_3V3();
+				retval = status;
+				break;
+			}
+			gf_dev->device_available = 1;
 		}
-
-		gf_dev->device_available = 1;
 		break;
 
 	case GF_IOC_DISABLE_POWER:

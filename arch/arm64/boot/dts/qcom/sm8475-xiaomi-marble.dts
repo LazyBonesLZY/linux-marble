@@ -303,10 +303,10 @@
  * "fpc,gpio_rst = <&tlmm 0x29 0x0>", "goodix,gpio-irq = <&tlmm 0x28 0x0>",
  * "goodix,gpio-reset = <&tlmm 0x29 0x0>" (evidence/fp-dt.txt).
  *
- * Stock supplies: FPC <- PM8350C L1C, Goodix <- PM8350C L6C.  Mainline
- * pm8350c does not describe those LDOs, so the supplies cannot be referenced
- * without inventing regulator constraints; the drivers treat the rail as
- * optional (evidence/fp-dt.txt, evidence/SUMMARY.md).
+ * Stock supplies: FPC <- PM8350C L1C (1.8 V), Goodix <- PM8350C L6C
+ * (3.3 V); both LDOs are instantiated below from the stock regulator
+ * constraints (evidence/fp-dt.txt, evidence/cam-merged.dts
+ * regulator-pm8350c-l1/-l6).
  */
 / {
 	fingerprint_fpc: fingerprint-fpc {
@@ -327,9 +327,10 @@
 		pinctrl-2 = <&fp_irq_default>;
 
 		/*
-		 * Stock also has fpc,gpio_irq / fpc,gpio_rst and
-		 * fp_vdd_vreg-supply = <&L1C>; those are downstream-only.
+		 * Stock also has fpc,gpio_irq / fpc,gpio_rst; those are
+		 * downstream-only.  L1C is the real sensor rail.
 		 */
+		fp_vdd_vreg-supply = <&pm8350c_l1>;
 	};
 
 	fingerprint_goodix: fingerprint-goodix {
@@ -342,9 +343,10 @@
 		reset-gpios = <&tlmm 41 GPIO_ACTIVE_HIGH>;
 
 		/*
-		 * Stock also has goodix,gpio-irq / goodix,gpio-reset and
-		 * l6c_vdd-supply = <&L6C>; those are downstream-only.
+		 * Stock also has goodix,gpio-irq / goodix,gpio-reset; those
+		 * are downstream-only.  L6C is the real sensor rail.
 		 */
+		l6c_vdd-supply = <&pm8350c_l6>;
 	};
 
 	/* Stock /soc/xiaomi_fingerprint: fingerdown/actpower sysfs hub. */
@@ -415,6 +417,14 @@
 		compatible = "qcom,pm8350c-rpmh-regulators";
 		qcom,pmic-id = "c";
 
+		/*
+		 * PM8350C LDO input rails.  Marble is an SM8450-class board
+		 * like sm8450-hdk/qrd, where BOBN supplies both L1/L12 and
+		 * L6/L9/L11 (the stock firmware leaves these implicit).
+		 */
+		vdd-l1-l12-supply = <&pm8350c_bob>;
+		vdd-l6-l9-l11-supply = <&pm8350c_bob>;
+
 		/* WCD9385 micbias supply (stock cdc-vdd-mic-bias) */
 		pm8350c_bob: bob {
 			regulator-name = "pm8350c_bob";
@@ -430,6 +440,14 @@
 			regulator-max-microvolt = <2024000>;
 		};
 
+		/* FPC fingerprint rail: stock L1C 1.8 V, init HPM */
+		pm8350c_l1: ldo1 {
+			regulator-name = "pm8350c_l1";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
 		/* touch vddio: stock 1.8 V fixed */
 		pm8350c_l2: ldo2 {
 			regulator-name = "pm8350c_l2";
@@ -443,6 +461,14 @@
 			regulator-name = "pm8350c_l9";
 			regulator-min-microvolt = <3224000>;
 			regulator-max-microvolt = <3224000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		/* Goodix fingerprint rail: stock L6C 3.3 V, init HPM */
+		pm8350c_l6: ldo6 {
+			regulator-name = "pm8350c_l6";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
@@ -1135,9 +1161,8 @@
 &tlmm {
 	/*
 	 * Fingerprint: mirrors stock msm_gpio_irq, msm_gpio_reset and
-	 * msm_gpio_reset_output_high (gpio40 IRQ, gpio41 reset). Unused while
-	 * the fingerprint nodes are disabled; kept so a future driver port
-	 * starts from the real pin configuration.
+	 * msm_gpio_reset_output_high (gpio40 IRQ, gpio41 reset).  Used by
+	 * the enabled FPC/Goodix nodes.
 	 */
 	fp_irq_default: fp-irq-default-state {
 		pins = "gpio40";
@@ -1564,6 +1589,7 @@
 	camera@1a {
 		compatible = "sony,imx355";
 		reg = <0x1a>;
+		status = "okay";
 
 		power-domains = <&camcc TITAN_TOP_GDSC>;
 
