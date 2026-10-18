@@ -1586,19 +1586,39 @@
 	};
 };
 
+&camss {
+	/*
+	 * Stock analog PHY rails: csi-vdd-0p9 = pm8350_l5 (0.9 V),
+	 * csi-vdd-1p2 = pm8350c_l10 (1.2 V).  Mainline CSIPHY names them
+	 * vdda-phy / vdda-pll.
+	 */
+	vdda-phy-supply = <&pm8350_l5>;
+	vdda-pll-supply = <&pm8350c_l10>;
+
+	ports {
+		port@0 {
+			csiphy0_ep: endpoint {
+				clock-lanes = <0>;
+				data-lanes = <1 2 3 4>;
+				link-frequencies = /bits/ 64 <360000000>;
+				remote-endpoint = <&imx355_ep>;
+			};
+		};
+	};
+};
+
 &cci0 {
 	status = "okay";
 };
 
 /*
  * Ultrawide IMX355 (stock cam-sensor2): reset gpio24, MCLK1 at 19.2 MHz,
- * cci-master 0, I2C address 0x1a.  The sensor/CCI probe path is enabled;
- * CSI capture additionally needs CAMSS resources, which mainline 7.2 does
- * not yet have for sm8450/sm8475 (camss.c has no sm8450/sm8475 entry; the
- * next supported SoC after sm8250 is sm8550).
+ * cci-master 0, I2C address 0x1a.  The sensor is wired to CSIPHY0
+ * (stock csiphy-sd-index = 0).
  *
  * Evidence: evidence/cam-role-map.md, evidence/cam-sensor2.txt,
- * evidence/cam/marble-merged.dts (pm8008j_l2/l3, pm8450_l4 mapping).
+ * evidence/cam/marble-merged.dts (pm8008j_l2/l3, pm8450_l4 mapping),
+ * evidence/cam-camss-sm8450-map.md (CAMSS MMIO/IRQ).
  */
 &cci0_i2c0 {
 	camera@1a {
@@ -1625,6 +1645,7 @@
 			imx355_ep: endpoint {
 				data-lanes = <1 2 3 4>;
 				link-frequencies = /bits/ 64 <360000000>;
+				remote-endpoint = <&csiphy0_ep>;
 			};
 		};
 	};
