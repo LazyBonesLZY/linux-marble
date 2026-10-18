@@ -1594,7 +1594,8 @@
  * Ultrawide IMX355 (stock cam-sensor2): reset gpio24, MCLK1 at 19.2 MHz,
  * cci-master 0, I2C address 0x1a.  The sensor/CCI probe path is enabled;
  * CSI capture additionally needs CAMSS resources, which mainline 7.2 does
- * not yet have for sm8450/sm8475 (camss.c compatible list stops at sm8250).
+ * not yet have for sm8450/sm8475 (camss.c has no sm8450/sm8475 entry; the
+ * next supported SoC after sm8250 is sm8550).
  *
  * Evidence: evidence/cam-role-map.md, evidence/cam-sensor2.txt,
  * evidence/cam/marble-merged.dts (pm8008j_l2/l3, pm8450_l4 mapping).
