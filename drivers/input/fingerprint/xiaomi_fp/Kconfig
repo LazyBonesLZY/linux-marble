@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0
+config FINGERPRINT_XIAOMI_FP
+	tristate "Xiaomi fingerprint hub"
+	depends on INPUT_FINGERPRINT
+	help
+	  Small Xiaomi fingerprint hub driver.  It exposes the "fingerdown"
+	  sysfs attribute used by the vendor fingerprint HAL on Xiaomi
+	  devices such as marble (POCO F5 / Redmi Note 12 Turbo).
+
+	  To compile this driver as a module, choose M here.  The module will
+	  be called xiaomifp.

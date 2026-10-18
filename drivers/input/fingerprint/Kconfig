@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Fingerprint sensor configuration
+#
+
+menuconfig INPUT_FINGERPRINT
+	bool "Fingerprint sensors"
+	help
+	  Say Y here to be able to choose fingerprint sensor drivers.
+	  These drivers only provide the platform plumbing (power, reset,
+	  IRQ, character device/netlink) expected by the vendor TEE-backed
+	  HALs; the actual fingerprint matching happens in the TEE.
+
+	  If unsure, say N.
+
+if INPUT_FINGERPRINT
+
+source "drivers/input/fingerprint/fpc_1540/Kconfig"
+source "drivers/input/fingerprint/goodix_3626/Kconfig"
+source "drivers/input/fingerprint/xiaomi_fp/Kconfig"
+
+endif

@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0
+config FINGERPRINT_GOODIX_3626
+	tristate "Goodix 3626 fingerprint sensor platform driver"
+	depends on INPUT_FINGERPRINT
+	help
+	  Platform driver for the Goodix 3626 side-mounted fingerprint
+	  sensor used on the Xiaomi marble (POCO F5 / Redmi Note 12 Turbo).
+
+	  It exposes the downstream /dev/goodix_fp character device, the
+	  Goodix netlink events and the input device used by the vendor HAL.
+	  Fingerprint matching itself is performed by the vendor TEE
+	  application.
+
+	  To compile this driver as a module, choose M here.  The module will
+	  be called goodix_3626.
