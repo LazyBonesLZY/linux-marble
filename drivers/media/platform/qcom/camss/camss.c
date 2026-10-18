@@ -3116,6 +3116,102 @@ static const struct camss_subdev_resources csiphy_res_8550[] = {
 	}
 };
 
+/*
+ * Marble (Xiaomi 12 Turbo / Poco F5, SM7475/SM8475 "ukee") integrates the
+ * same CAMSS generation as SM8550: VFE680_110, CSID680_110 and CSIPHY 2.1.3.
+ * Unlike SM8550 only CSIPHY0..3 and CSIPHY5 are present; CSIPHY4/6/7 are
+ * absent (see evidence/cam-camss-sm8450-map.md).  CSIPHY2/3 use the
+ * "m16t" variant in the vendor DT; mainline programs them with the same
+ * GEN2 3-phase ops as SM8550, and no stock sensor is wired to them.
+ */
+static const struct camss_subdev_resources csiphy_res_sm8450[] = {
+	/* CSIPHY0 */
+	{
+		.regulators = {
+			{ .supply = "vdda-phy", .init_load_uA = 147000 },
+			{ .supply = "vdda-pll", .init_load_uA = 59400 }
+		},
+		.clock = { "csiphy0", "csiphy0_timer" },
+		.clock_rate = { { 400000000, 480000000 },
+				{ 400000000 } },
+		.reg = { "csiphy0" },
+		.interrupt = { "csiphy0" },
+		.csiphy = {
+			.id = 0,
+			.hw_ops = &csiphy_ops_3ph_1_0,
+			.formats = &csiphy_formats_sdm845
+		}
+	},
+	/* CSIPHY1 */
+	{
+		.regulators = {
+			{ .supply = "vdda-phy", .init_load_uA = 147000 },
+			{ .supply = "vdda-pll", .init_load_uA = 59400 }
+		},
+		.clock = { "csiphy1", "csiphy1_timer" },
+		.clock_rate = { { 400000000, 480000000 },
+				{ 400000000 } },
+		.reg = { "csiphy1" },
+		.interrupt = { "csiphy1" },
+		.csiphy = {
+			.id = 1,
+			.hw_ops = &csiphy_ops_3ph_1_0,
+			.formats = &csiphy_formats_sdm845
+		}
+	},
+	/* CSIPHY2 */
+	{
+		.regulators = {
+			{ .supply = "vdda-phy", .init_load_uA = 147000 },
+			{ .supply = "vdda-pll", .init_load_uA = 59400 }
+		},
+		.clock = { "csiphy2", "csiphy2_timer" },
+		.clock_rate = { { 400000000, 480000000 },
+				{ 400000000 } },
+		.reg = { "csiphy2" },
+		.interrupt = { "csiphy2" },
+		.csiphy = {
+			.id = 2,
+			.hw_ops = &csiphy_ops_3ph_1_0,
+			.formats = &csiphy_formats_sdm845
+		}
+	},
+	/* CSIPHY3 */
+	{
+		.regulators = {
+			{ .supply = "vdda-phy", .init_load_uA = 147000 },
+			{ .supply = "vdda-pll", .init_load_uA = 59400 }
+		},
+		.clock = { "csiphy3", "csiphy3_timer" },
+		.clock_rate = { { 400000000, 480000000 },
+				{ 400000000 } },
+		.reg = { "csiphy3" },
+		.interrupt = { "csiphy3" },
+		.csiphy = {
+			.id = 3,
+			.hw_ops = &csiphy_ops_3ph_1_0,
+			.formats = &csiphy_formats_sdm845
+		}
+	},
+	/* CSIPHY5 */
+	{
+		.regulators = {
+			{ .supply = "vdda-phy", .init_load_uA = 147000 },
+			{ .supply = "vdda-pll", .init_load_uA = 59400 }
+		},
+		.clock = { "csiphy5", "csiphy5_timer" },
+		.clock_rate = { { 400000000, 480000000 },
+				{ 400000000 } },
+		.reg = { "csiphy5" },
+		.interrupt = { "csiphy5" },
+		.csiphy = {
+			.id = 5,
+			.hw_ops = &csiphy_ops_3ph_1_0,
+			.formats = &csiphy_formats_sdm845
+		}
+	}
+};
+
 static const struct resources_wrapper csid_wrapper_res_sm8550 = {
 	.reg = "csid_wrapper",
 };
@@ -5709,6 +5805,28 @@ static const struct camss_resources sm8550_resources = {
 	.vfe_num = ARRAY_SIZE(vfe_res_8550),
 };
 
+/*
+ * SM8450/SM8475 (marble "ukee") CAMSS.  The VFE/CSID/CSIPHY programming,
+ * power-domain names and ICC paths are identical to SM8550, so the
+ * CAMSS_8550 register ops and the shared CSID/VFE resource tables are
+ * reused.  Only the CSIPHY set differs (no CSIPHY4/6/7); the MMIO/IRQ
+ * layout is supplied by the device tree.  The IFE/CSID lite blocks share
+ * one register window and are split at +0x1000, like SM8550.
+ */
+static const struct camss_resources sm8450_resources = {
+	.version = CAMSS_8550,
+	.pd_name = "top",
+	.csiphy_res = csiphy_res_sm8450,
+	.csid_res = csid_res_8550,
+	.vfe_res = vfe_res_8550,
+	.csid_wrapper_res = &csid_wrapper_res_sm8550,
+	.icc_res = icc_res_sm8550,
+	.icc_path_num = ARRAY_SIZE(icc_res_sm8550),
+	.csiphy_num = ARRAY_SIZE(csiphy_res_sm8450),
+	.csid_num = ARRAY_SIZE(csid_res_8550),
+	.vfe_num = ARRAY_SIZE(vfe_res_8550),
+};
+
 static const struct camss_resources sm8650_resources = {
 	.version = CAMSS_8650,
 	.pd_name = "top",
@@ -5755,6 +5873,8 @@ static const struct of_device_id camss_dt_match[] = {
 	{ .compatible = "qcom,sm6150-camss", .data = &sm6150_resources },
 	{ .compatible = "qcom,sm6350-camss", .data = &sm6350_resources },
 	{ .compatible = "qcom,sm8250-camss", .data = &sm8250_resources },
+	{ .compatible = "qcom,sm8450-camss", .data = &sm8450_resources },
+	{ .compatible = "qcom,sm8475-camss", .data = &sm8450_resources },
 	{ .compatible = "qcom,sm8550-camss", .data = &sm8550_resources },
 	{ .compatible = "qcom,sm8650-camss", .data = &sm8650_resources },
 	{ .compatible = "qcom,x1e80100-camss", .data = &x1e80100_resources },
