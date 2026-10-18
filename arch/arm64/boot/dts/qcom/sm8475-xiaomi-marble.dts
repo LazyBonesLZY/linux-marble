@@ -1584,6 +1584,36 @@
 		bias-pull-down;
 		output-low;
 	};
+
+	cam_mclk5_default: cam-mclk5-default-state {
+		pins = "gpio105";
+		function = "cam_mclk";
+		drive-strength = <4>;
+		bias-disable;
+	};
+
+	cam_mclk5_suspend: cam-mclk5-suspend-state {
+		pins = "gpio105";
+		function = "cam_mclk";
+		drive-strength = <4>;
+		bias-pull-down;
+	};
+
+	cam_reset1_default: cam-reset1-default-state {
+		pins = "gpio127";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-high;
+	};
+
+	cam_reset1_suspend: cam-reset1-suspend-state {
+		pins = "gpio127";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+		output-low;
+	};
 };
 
 &camss {
@@ -1602,6 +1632,16 @@
 				data-lanes = <1 2 3 4>;
 				link-frequencies = /bits/ 64 <360000000>;
 				remote-endpoint = <&imx355_ep>;
+			};
+		};
+
+		/* Front S5K3P9 → CSIPHY3 (stock csiphy-sd-index = 3) */
+		port@3 {
+			csiphy3_ep: endpoint {
+				clock-lanes = <0>;
+				data-lanes = <1 2 3 4>;
+				link-frequencies = /bits/ 64 <600000000>;
+				remote-endpoint = <&s5k3p9_ep>;
 			};
 		};
 	};
@@ -1646,6 +1686,46 @@
 				data-lanes = <1 2 3 4>;
 				link-frequencies = /bits/ 64 <360000000>;
 				remote-endpoint = <&csiphy0_ep>;
+			};
+		};
+	};
+
+	/*
+	 * Front S5K3P9SP04 (stock cam-sensor1): reset gpio127, MCLK5 at
+	 * 19.2 MHz, cci-master 0, I2C address 0x10.  Wired to CSIPHY3.
+	 * Chip-id path: CCI_REG16(0x0000) == 0x3109 (matches CamX
+	 * sensorDriverData and community s5k3p9.c).
+	 *
+	 * Supplies from stock cam-sensor1 phandles: cam_vio=pm8450_l4,
+	 * cam_vana=pm8008j_l7 (2.8 V), cam_vdig=pm8008j_l1 (1.0 V).
+	 * Evidence: evidence/cam-slaveaddr-re-2026-10-19.md,
+	 * evidence/cam-sensor1.txt, evidence/cam/marble-merged.dts.
+	 */
+	camera@10 {
+		compatible = "samsung,s5k3p9";
+		reg = <0x10>;
+		status = "okay";
+
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+
+		clocks = <&camcc CAM_CC_MCLK5_CLK>;
+		assigned-clocks = <&camcc CAM_CC_MCLK5_CLK>;
+		assigned-clock-rates = <19200000>;
+
+		reset-gpios = <&tlmm 127 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "suspend";
+		pinctrl-0 = <&cam_mclk5_default &cam_reset1_default>;
+		pinctrl-1 = <&cam_mclk5_suspend &cam_reset1_suspend>;
+
+		vio-supply = <&pm8450_l4>;
+		vana-supply = <&pm8008j_l7>;
+		vdig-supply = <&pm8008j_l1>;
+
+		port {
+			s5k3p9_ep: endpoint {
+				data-lanes = <1 2 3 4>;
+				link-frequencies = /bits/ 64 <600000000>;
+				remote-endpoint = <&csiphy3_ep>;
 			};
 		};
 	};
