@@ -1270,6 +1270,15 @@ static void fpc1020_remove(struct platform_device *pdev)
 	if (fpc1020->gpios_requested)
 		(void)request_vreg_gpio(fpc1020, false);
 
+	mutex_lock(&fpc1020->lock);
+	if (vreg) {
+		if (regulator_is_enabled(vreg))
+			(void)regulator_disable(vreg);
+		regulator_put(vreg);
+		vreg = NULL;
+	}
+	mutex_unlock(&fpc1020->lock);
+
 	sysfs_remove_group(&pdev->dev.kobj, &attribute_group);
 	mutex_destroy(&fpc1020->lock);
 	mutex_destroy(&fpc1020->fb_lock);
