@@ -451,23 +451,29 @@ exit:
 	return rc;
 }
 
-static void power_reset(void)
+static int power_reset(void)
 {
-    int status = -EINVAL;
+    int status;
 
     if (!vreg)
-        return;
+        return -ENODEV;
 
     status = regulator_get_voltage(vreg);
     pr_info("%s, voltage before power down is %d\n", __func__, status);
 
     /* power down */
     status = regulator_disable(vreg);
+    if (status)
+        return status;
     usleep_range(100*1000, 200*1000);
 
     /* power up */
     status = regulator_enable(vreg);
+    if (status)
+        return status;
     usleep_range(100*1000, 200*1000);
+
+    return 0;
 }
 
 static ssize_t power_ctrl_get(struct device *device,
@@ -517,6 +523,8 @@ static ssize_t power_ctrl_set(struct device *device,
         enabled = regulator_is_enabled(vreg);
         if (enabled <= 0) {
             status = regulator_enable(vreg);
+            if (status)
+                goto out;
             usleep_range(100*1000, 200*1000);
         }
         status = hw_reset(fpc1020);
@@ -562,8 +570,9 @@ static ssize_t hw_reset_set(struct device *dev,
 
 	if (!strncmp(buf, "reset", strlen("reset"))) {
 		mutex_lock(&fpc1020->lock);
-		power_reset();
-		rc = hw_reset(fpc1020);
+		rc = power_reset();
+		if (!rc)
+			rc = hw_reset(fpc1020);
 		mutex_unlock(&fpc1020->lock);
 	} else {
 		return -EINVAL;
