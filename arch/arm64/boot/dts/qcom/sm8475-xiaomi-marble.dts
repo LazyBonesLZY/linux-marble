@@ -172,6 +172,25 @@
 		};
 	};
 
+	/*
+	 * Top AW88263S output switch: low = top speaker, high = earpiece.
+	 * The old gpio-hog permanently drove it low; export it as an LED so
+	 * userspace can flip it. UCM cannot touch GPIOs directly, so the
+	 * Earpiece profile needs:
+	 *   echo 1 > /sys/class/leds/earpiece-switch/brightness
+	 * and Speaker/Earpiece-disable needs:
+	 *   echo 0 > /sys/class/leds/earpiece-switch/brightness
+	 */
+	earpiece-switch {
+		compatible = "gpio-leds";
+
+		earpiece-route {
+			label = "earpiece-switch";
+			gpios = <&tlmm 52 GPIO_ACTIVE_HIGH>;
+			default-state = "off"; /* low: top speaker */
+		};
+	};
+
 	reserved-memory {
 		/*
 		 * Encoder ARP buffers (one 256 KiB slot per session). Handed to
@@ -265,6 +284,72 @@
 		vdd-mic-bias-supply = <&pm8350c_bob>;
 
 		#sound-dai-cells = <1>;
+	};
+};
+
+/*
+ * Side-mounted fingerprint sensor in the power button.
+ *
+ * Stock enables two vendor nodes, fingerprint_fpc and fingerprint_goodix,
+ * plus a downstream "xiaomi-fingerprint" hub; Xiaomi userspace/TEE picks one
+ * at runtime.  The two mainline platform drivers in
+ * drivers/input/fingerprint/ bind these compatibles and expose the ABI the
+ * vendor HALs expect.  Both nodes are left enabled like stock; whichever HAL
+ * runs claims the shared pins first (see 0005-NOTES.md).
+ *
+ * Both sensors share TLMM gpio40 as IRQ and gpio41 as reset.  Stock DT flags
+ * are 0 (active high): "fpc,gpio_irq = <&tlmm 0x28 0x0>",
+ * "fpc,gpio_rst = <&tlmm 0x29 0x0>", "goodix,gpio-irq = <&tlmm 0x28 0x0>",
+ * "goodix,gpio-reset = <&tlmm 0x29 0x0>" (evidence/fp-dt.txt).
+ *
+ * Stock supplies: FPC <- PM8350C L1C, Goodix <- PM8350C L6C.  Mainline
+ * pm8350c does not describe those LDOs, so the supplies cannot be referenced
+ * without inventing regulator constraints; the drivers treat the rail as
+ * optional (evidence/fp-dt.txt, evidence/SUMMARY.md).
+ */
+/ {
+	fingerprint_fpc: fingerprint-fpc {
+		compatible = "fpc,fpc1020";
+		status = "okay";
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <40 IRQ_TYPE_EDGE_RISING>;
+		irq-gpios = <&tlmm 40 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&tlmm 41 GPIO_ACTIVE_HIGH>;
+
+		/* Names and order match stock msm_gpio_reset/_output_high/irq */
+		pinctrl-names = "fpc1020_reset_reset",
+				"fpc1020_reset_active",
+				"fpc1020_irq_active";
+		pinctrl-0 = <&fp_reset_default>;
+		pinctrl-1 = <&fp_reset_active>;
+		pinctrl-2 = <&fp_irq_default>;
+
+		/*
+		 * Stock also has fpc,gpio_irq / fpc,gpio_rst and
+		 * fp_vdd_vreg-supply = <&L1C>; those are downstream-only.
+		 */
+	};
+
+	fingerprint_goodix: fingerprint-goodix {
+		compatible = "goodix,fingerprint";
+		status = "okay";
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <40 IRQ_TYPE_EDGE_RISING>;
+		irq-gpios = <&tlmm 40 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&tlmm 41 GPIO_ACTIVE_HIGH>;
+
+		/*
+		 * Stock also has goodix,gpio-irq / goodix,gpio-reset and
+		 * l6c_vdd-supply = <&L6C>; those are downstream-only.
+		 */
+	};
+
+	/* Stock /soc/xiaomi_fingerprint: fingerdown/actpower sysfs hub. */
+	xiaomi_fingerprint: xiaomi-fingerprint {
+		compatible = "xiaomi-fingerprint";
+		status = "okay";
 	};
 };
 
@@ -754,6 +839,35 @@
 	};
 };
 
+/*
+ * NFC: stock i2c@a84000 (QUP SE9) / nq@28, compatible "qcom,sn-nci"
+ * (NXP SN100/SN220 class). Mainline uses the generic NXP NCI I2C driver.
+ * IRQ gpio46, VEN gpio34, FIRM gpio45, CLKREQ gpio35. Stock feeds the
+ * chip from S10B, but the mainline nxp-nci binding has no supply property,
+ * so pm8350_s10 cannot be described here.
+ */
+&i2c9 {
+	clock-frequency = <1000000>;
+	status = "okay";
+
+	nfc@28 {
+		compatible = "nxp,pn553",
+			     "nxp,nxp-nci-i2c";
+		reg = <0x28>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <46 IRQ_TYPE_EDGE_RISING>;
+
+		enable-gpios = <&tlmm 34 GPIO_ACTIVE_HIGH>;
+		firmware-gpios = <&tlmm 45 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&nfc_int_default>,
+			    <&nfc_enable_default>,
+			    <&nfc_clk_req>;
+	};
+};
+
 &pm8350b_haptics {
 	qcom,vmax-microvolt = <1450000>;
 	qcom,lra-period-us = <5882>;
@@ -808,6 +922,23 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&ts_int_n>, <&ts_reset_n>;
+	};
+};
+
+/*
+ * IR transmitter: stock spi@a94000 (QUP SE13) / ir-spi@0, compatible
+ * "ir-spi". The mainline driver (drivers/media/rc/ir-spi.c) binds
+ * "ir-spi-led"; stock runs it at 19.2 MHz (0x124f800).
+ */
+&spi13 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ir_spi_default>;
+	status = "okay";
+
+	irled@0 {
+		compatible = "ir-spi-led";
+		reg = <0>;
+		spi-max-frequency = <19200000>;
 	};
 };
 
@@ -965,6 +1096,69 @@
 			function = "qup20";
 			bias-disable;
 		};
+	};
+};
+
+&tlmm {
+	/* NFC: stock nfc_int_active / nfc_enable_active states */
+	nfc_int_default: nfc-int-default-state {
+		pins = "gpio46";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	nfc_enable_default: nfc-enable-default-state {
+		pins = "gpio34", "gpio45";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	nfc_clk_req: nfc-clk-req-state {
+		pins = "gpio35";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	/* IR: stock qupv3_se13_spi_active, gpio48-51 on QUP SE13 */
+	ir_spi_default: ir-spi-default-state {
+		pins = "gpio48", "gpio49", "gpio50", "gpio51";
+		function = "qup13";
+		drive-strength = <6>;
+		bias-disable;
+	};
+};
+
+&tlmm {
+	/*
+	 * Fingerprint: mirrors stock msm_gpio_irq, msm_gpio_reset and
+	 * msm_gpio_reset_output_high (gpio40 IRQ, gpio41 reset). Unused while
+	 * the fingerprint nodes are disabled; kept so a future driver port
+	 * starts from the real pin configuration.
+	 */
+	fp_irq_default: fp-irq-default-state {
+		pins = "gpio40";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	fp_reset_default: fp-reset-default-state {
+		pins = "gpio41";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-low;
+	};
+
+	fp_reset_active: fp-reset-active-state {
+		pins = "gpio41";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-high;
 	};
 };
 
@@ -1153,13 +1347,7 @@
 		line-name = "speaker-bottom-reset-n";
 	};
 
-	/* Routes the top amp to the top speaker (high: earpiece) */
-	speaker-earpiece-switch-hog {
-		gpio-hog;
-		gpios = <52 GPIO_ACTIVE_HIGH>;
-		output-low;
-		line-name = "speaker-earpiece-switch";
-	};
+	/* gpio52 (speaker/earpiece switch) is owned by the earpiece-switch LED */
 
 	tert_mi2s_active: tert-mi2s-active-state {
 		sck-pins {
@@ -1211,7 +1399,9 @@
 	qcom,tdm-format = "dsp_a";
 
 	/* Analog mics on the WCD9385; ADCs feed the TX macro over SoundWire */
-	audio-routing = "AMIC1", "MIC BIAS1",
+	audio-routing = "IN1_HPHL", "HPHL_OUT",
+			"IN2_HPHR", "HPHR_OUT",
+			"AMIC1", "MIC BIAS1",
 			"AMIC2", "MIC BIAS2",
 			"AMIC3", "MIC BIAS3",
 			"AMIC4", "MIC BIAS3",
@@ -1219,6 +1409,27 @@
 			"TX SWR_INPUT1", "ADC2_OUTPUT",
 			"TX SWR_INPUT0", "ADC3_OUTPUT",
 			"TX SWR_INPUT1", "ADC4_OUTPUT";
+
+	/*
+	 * WCD9385 headphone DAC/amp path. The firmware topology shipped in
+	 * firmware-xiaomi-marble has no RX_CODEC_DMA_RX_0 graph yet, so this
+	 * backend is described but not usable until the topology gains one.
+	 */
+	wcd-playback-dai-link {
+		link-name = "WCD Playback";
+
+		cpu {
+			sound-dai = <&q6apmbedai RX_CODEC_DMA_RX_0>;
+		};
+
+		codec {
+			sound-dai = <&wcd938x 0>, <&swr1 0>, <&rxmacro 0>;
+		};
+
+		platform {
+			sound-dai = <&q6apm>;
+		};
+	};
 
 	wcd-capture-dai-link {
 		link-name = "WCD Capture";
