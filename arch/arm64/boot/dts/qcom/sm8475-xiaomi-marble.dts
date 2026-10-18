@@ -1614,6 +1614,36 @@
 		bias-pull-down;
 		output-low;
 	};
+
+	cam_mclk0_default: cam-mclk0-default-state {
+		pins = "gpio100";
+		function = "cam_mclk";
+		drive-strength = <4>;
+		bias-disable;
+	};
+
+	cam_mclk0_suspend: cam-mclk0-suspend-state {
+		pins = "gpio100";
+		function = "cam_mclk";
+		drive-strength = <4>;
+		bias-pull-down;
+	};
+
+	cam_reset3_default: cam-reset3-default-state {
+		pins = "gpio128";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-high;
+	};
+
+	cam_reset3_suspend: cam-reset3-suspend-state {
+		pins = "gpio128";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+		output-low;
+	};
 };
 
 &camss {
@@ -1632,6 +1662,16 @@
 				data-lanes = <1 2 3 4>;
 				link-frequencies = /bits/ 64 <360000000>;
 				remote-endpoint = <&imx355_ep>;
+			};
+		};
+
+		/* Macro GC02M1 → CSIPHY1 (stock csiphy-sd-index = 1) */
+		port@1 {
+			csiphy1_ep: endpoint {
+				clock-lanes = <0>;
+				data-lanes = <1>;
+				link-frequencies = /bits/ 64 <336000000>;
+				remote-endpoint = <&gc02m1_ep>;
 			};
 		};
 
@@ -1726,6 +1766,42 @@
 				data-lanes = <1 2 3 4>;
 				link-frequencies = /bits/ 64 <600000000>;
 				remote-endpoint = <&csiphy3_ep>;
+			};
+		};
+	};
+
+	/*
+	 * Macro GC02M1 (stock cam-sensor3): reset gpio128, MCLK0 at 19.2 MHz,
+	 * cci-master 0, I2C address 0x37.  Wired to CSIPHY1, 1 data lane.
+	 * Chip-id path: CCI_REG16(0xf0) == 0x02e0 (CamX + GalaxyCore).
+	 * Stock supplies: cam_vio=pm8008j_l5, cam_vana=pm8008j_l4 (no vdig).
+	 * Evidence: evidence/cam-slaveaddr-re-2026-10-19.md, cam-sensor3,
+	 * cam/marble-merged.dts.
+	 */
+	camera@37 {
+		compatible = "galaxycore,gc02m1";
+		reg = <0x37>;
+		status = "okay";
+
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+
+		clocks = <&camcc CAM_CC_MCLK0_CLK>;
+		assigned-clocks = <&camcc CAM_CC_MCLK0_CLK>;
+		assigned-clock-rates = <19200000>;
+
+		reset-gpios = <&tlmm 128 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "suspend";
+		pinctrl-0 = <&cam_mclk0_default &cam_reset3_default>;
+		pinctrl-1 = <&cam_mclk0_suspend &cam_reset3_suspend>;
+
+		dovdd-supply = <&pm8008j_l5>;
+		avdd-supply = <&pm8008j_l4>;
+
+		port {
+			gc02m1_ep: endpoint {
+				data-lanes = <1>;
+				link-frequencies = /bits/ 64 <336000000>;
+				remote-endpoint = <&csiphy1_ep>;
 			};
 		};
 	};

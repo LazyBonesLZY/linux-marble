@@ -80,6 +80,16 @@ config VIDEO_GC0310
 	  To compile this driver as a module, choose M here: the
 	  module will be called gc0310.
 
+config VIDEO_GC02M1
+	tristate "GalaxyCore GC02M1 sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a V4L2 sensor driver for the GalaxyCore GC02M1
+	  2MP raw camera sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc02m1.
+
 config VIDEO_GC05A2
 	tristate "GalaxyCore gc05a2 sensor support"
 	select V4L2_CCI_I2C
