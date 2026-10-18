@@ -1,0 +1,104 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/i2c/galaxycore,gc02m1.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: GalaxyCore GC02M1 2M Pixel MIPI CSI-2 Sensor
+
+maintainers:
+  - LazyBonesLZY <lazyboneslzy@users.noreply.github.com>
+
+description:
+  The GC02M1 is a 1600x1200 raw Bayer CMOS image sensor with an MIPI CSI-2
+  data interface and an I2C control bus. Chip id is read as a 16-bit value
+  from register 0xf0 and equals 0x02e0 (distinct from GC02M2 0x02f0).
+
+properties:
+  compatible:
+    const: galaxycore,gc02m1
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  dovdd-supply:
+    description: Digital I/O voltage supply (typically 1.8 V).
+
+  avdd-supply:
+    description: Analog voltage supply (typically 2.8 V).
+
+  reset-gpios:
+    description: Active-low GPIO connected to the sensor reset pin.
+    maxItems: 1
+
+  port:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    additionalProperties: false
+    description:
+      Output port node, single endpoint describing the CSI-2 transmitter.
+
+    properties:
+      endpoint:
+        $ref: /schemas/media/video-interfaces.yaml#
+        unevaluatedProperties: false
+
+        properties:
+          data-lanes:
+            items:
+              - const: 1
+
+          link-frequencies: true
+
+        required:
+          - data-lanes
+          - link-frequencies
+
+    required:
+      - endpoint
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - dovdd-supply
+  - avdd-supply
+  - reset-gpios
+  - port
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,sm8450-camcc.h>
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        camera@37 {
+            compatible = "galaxycore,gc02m1";
+            reg = <0x37>;
+
+            clocks = <&camcc CAM_CC_MCLK0_CLK>;
+            assigned-clocks = <&camcc CAM_CC_MCLK0_CLK>;
+            assigned-clock-rates = <19200000>;
+
+            reset-gpios = <&tlmm 128 GPIO_ACTIVE_LOW>;
+
+            dovdd-supply = <&vreg_1p8>;
+            avdd-supply = <&vreg_2p8>;
+
+            port {
+                endpoint {
+                    data-lanes = <1>;
+                    link-frequencies = /bits/ 64 <336000000>;
+                    remote-endpoint = <&csiphy_ep>;
+                };
+            };
+        };
+    };
+...

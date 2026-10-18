@@ -1,0 +1,112 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/i2c/samsung,s5k3p9.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung S5K3P9 (ISOCELL Slim 3P9) Image Sensor
+
+maintainers:
+  - LazyBonesLZY <lazyboneslzy@users.noreply.github.com>
+
+description:
+  Samsung S5K3P9 / S5K3P9SP is a 16MP raw Bayer CMOS image sensor with a
+  CCI (I2C-compatible) control bus and a MIPI CSI-2 data interface.
+  Chip id is read from register 0x0000 and equals 0x3109.
+
+allOf:
+  - $ref: /schemas/media/video-interface-devices.yaml#
+
+properties:
+  compatible:
+    const: samsung,s5k3p9
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    description: Sensor MCLK clock.
+    maxItems: 1
+
+  reset-gpios:
+    description: Active-low GPIO connected to the sensor reset pin.
+    maxItems: 1
+
+  vio-supply:
+    description: Digital I/O voltage supply (typically 1.8 V).
+
+  vana-supply:
+    description: Analog voltage supply (typically 2.8 V).
+
+  vdig-supply:
+    description: Digital core voltage supply (typically 1.0 V).
+
+  port:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    additionalProperties: false
+
+    properties:
+      endpoint:
+        $ref: /schemas/media/video-interfaces.yaml#
+        unevaluatedProperties: false
+
+        properties:
+          data-lanes:
+            items:
+              - const: 1
+              - const: 2
+              - const: 3
+              - const: 4
+
+        required:
+          - data-lanes
+          - link-frequencies
+
+    required:
+      - endpoint
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - reset-gpios
+  - vio-supply
+  - vana-supply
+  - vdig-supply
+  - port
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,sm8450-camcc.h>
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        camera@10 {
+            compatible = "samsung,s5k3p9";
+            reg = <0x10>;
+
+            clocks = <&camcc CAM_CC_MCLK5_CLK>;
+            assigned-clocks = <&camcc CAM_CC_MCLK5_CLK>;
+            assigned-clock-rates = <19200000>;
+
+            reset-gpios = <&tlmm 127 GPIO_ACTIVE_LOW>;
+
+            vio-supply = <&vreg_1p8>;
+            vana-supply = <&vreg_2p8>;
+            vdig-supply = <&vreg_1p0>;
+
+            port {
+                endpoint {
+                    data-lanes = <1 2 3 4>;
+                    link-frequencies = /bits/ 64 <600000000>;
+                    remote-endpoint = <&csiphy_ep>;
+                };
+            };
+        };
+    };
+...
