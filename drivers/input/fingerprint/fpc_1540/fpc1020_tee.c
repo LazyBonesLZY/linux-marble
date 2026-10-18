@@ -625,14 +625,13 @@ static int device_prepare(struct fpc1020_data *fpc1020, bool enable)
 			vreg = regulator_get(dev, "fp_vdd_vreg");
 
 			if (IS_ERR(vreg)) {
-				dev_warn(dev, "fp_vdd_vreg unavailable (%ld), continuing without rail control\n",
-					 PTR_ERR(vreg));
+				rc = PTR_ERR(vreg);
 				vreg = NULL;
+				dev_err(dev, "fp_vdd_vreg unavailable: %d\n", rc);
+				goto exit;
 			}
 
-			if (!vreg) {
-				/* No mainline regulator for L1C; sensor rail is left alone. */
-			} else if (regulator_is_enabled(vreg)) {
+			if (regulator_is_enabled(vreg)) {
 				pr_info("fp_vdd_vreg is already enabled!\n");
 			} else {
 				rc = regulator_set_load(vreg, 100000);
@@ -641,10 +640,10 @@ static int device_prepare(struct fpc1020_data *fpc1020, bool enable)
 				}
 				rc = regulator_enable(vreg);
 				if (rc) {
-					dev_err(dev, "error enabling fp_vdd_vreg!\n");
+					dev_err(dev, "error enabling fp_vdd_vreg: %d\n",
+						rc);
 					regulator_put(vreg);
 					vreg = NULL;
-					rc = 0;
 					goto exit;
 				}
 			}
@@ -697,14 +696,14 @@ static int device_prepare(struct fpc1020_data *fpc1020, bool enable)
 				rc = regulator_disable(vreg);
 				if (rc) {
 					dev_dbg(dev, "fpc vreg disable failed. \n");
-					goto exit;
+					goto out_unlock;
 				}
 			}
 		} else {
 			rc = vreg_setup(fpc1020, "vdd_ana", false);
 			if (rc) {
 				dev_dbg(dev, "fpc vreg power off failed. \n");
-				goto exit;
+				goto out_unlock;
 			}
 		}
 #ifndef FPC_DRM_INTERFACE_WA
@@ -718,6 +717,7 @@ exit:
 	} else {
 		rc = 0;
 	}
+out_unlock:
 	mutex_unlock(&fpc1020->lock);
 	dev_dbg(dev, "fpc %s <---: exit! \n", __func__);
 	return rc;
