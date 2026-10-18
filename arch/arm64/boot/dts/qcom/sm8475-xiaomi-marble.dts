@@ -871,7 +871,12 @@
  * (NXP SN100/SN220 class). Mainline uses the generic NXP NCI I2C driver.
  * IRQ gpio46, VEN gpio34, FIRM gpio45, CLKREQ gpio35. Stock feeds the
  * chip from S10B, but the mainline nxp-nci binding has no supply property,
- * so pm8350_s10 cannot be described here.
+ * so pm8350_s10 cannot be described here.  S10 is also the WLAN/WCD9385
+ * vddio rail, so those consumers keep it enabled.
+ *
+ * Userspace note: stock expects /dev/nq-nci plus the vendor NXP HAL; the
+ * mainline nxp-nci driver exposes a different NCI device, so an adapter
+ * or a mainline NFC stack is still required above the kernel.
  */
 &i2c9 {
 	clock-frequency = <1000000>;
