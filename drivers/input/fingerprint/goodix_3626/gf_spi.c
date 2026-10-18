@@ -784,6 +784,7 @@ static int gf_open(struct inode *inode, struct file *filp)
 						"gf", gf_dev);
 
 		if (!rc) {
+			gf_dev->irq_requested = 1;
 			enable_irq_wake(gf_dev->irq);
 			gf_dev->irq_enabled = 1;
 			gf_disable_irq(gf_dev);
@@ -854,7 +855,10 @@ static int gf_release(struct inode *inode, struct file *filp)
 		gf_disable_irq(gf_dev);
 		/*power off the sensor*/
 		gf_dev->device_available = 0;
-		free_irq(gf_dev->irq, gf_dev);
+		if (gf_dev->irq_requested) {
+			free_irq(gf_dev->irq, gf_dev);
+			gf_dev->irq_requested = 0;
+		}
 		if (gf_dev->irq_gpio) {
 			gpiod_put(gf_dev->irq_gpio);
 			gf_dev->irq_gpio = NULL;
@@ -1240,8 +1244,9 @@ static void gf_remove(struct platform_device *pdev)
 	wakeup_source_unregister(fp_wakelock);
 	fp_wakelock = NULL;
 	/* make sure ops on existing fds can abort cleanly */
-	if (gf_dev->irq) {
+	if (gf_dev->irq_requested) {
 		free_irq(gf_dev->irq, gf_dev);
+		gf_dev->irq_requested = 0;
 	}
 
 	if (gf_dev->irq_gpio) {
