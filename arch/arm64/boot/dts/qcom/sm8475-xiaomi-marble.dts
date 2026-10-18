@@ -8,6 +8,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 
@@ -1590,4 +1591,28 @@
 
 &cci1 {
 	status = "okay";
+};
+
+/*
+ * PM8350C flash LED.  Stock wires the physical flash to HW channels 0 and 3
+ * (1-based 1 and 4): the three vendor `qcom,camera-flash` nodes all use
+ * flash_0/flash_3 plus torch_0/torch_3, and switch_0 has mask 0x09 for the
+ * same pair.  Stock limits: 1500 mA flash, 500 mA torch per channel, 1280 ms
+ * timeout, 12.5 mA ires.  The mainline driver caps a ganged two-channel LED
+ * at 2000 mA total, matching the binding example.
+ *
+ * Evidence: evidence/cam/marble-merged.dts (flash_led@ee00 and
+ * qcom,camera-flash@1..3), evidence/cam-role-map.md, evidence/camera-SUMMARY.md.
+ */
+&pm8350c_flash {
+	status = "okay";
+
+	led-0 {
+		function = LED_FUNCTION_FLASH;
+		function-enumerator = <0>;
+		led-sources = <1>, <4>;
+		led-max-microamp = <1000000>;
+		flash-max-microamp = <2000000>;
+		flash-max-timeout-us = <1280000>;
+	};
 };
