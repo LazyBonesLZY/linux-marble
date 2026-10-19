@@ -2228,32 +2228,19 @@ static int s5k3p9_probe(struct i2c_client *client)
 		goto err_free_handler;
 	}
 
-	gpiod_set_value_cansleep(s5k3p9->reset_gpio, 1);
-
-	ret = regulator_bulk_enable(ARRAY_SIZE(s5k3p9_supply_names),
-				    s5k3p9->supplies);
-	if (ret < 0) {
-		dev_err(s5k3p9->dev, "failed to enable regulators\n");
+	/*
+	 * Power the sensor on and verify its chip id before registering.
+	 * power_on() enables the supplies/clock and reads the id register,
+	 * returning an error on any failure, so probe fails closed.
+	 */
+	ret = s5k3p9_power_on(s5k3p9->dev);
+	if (ret) {
+		dev_err_probe(s5k3p9->dev, ret, "failed to power on\n");
+		goto err_clean_entity;
 	}
-	usleep_range(4000, 5000);
 
-	ret = clk_prepare_enable(s5k3p9->mclk);
-	if (ret < 0) {
-		dev_err(s5k3p9->dev, "failed to enable mclk\n");
-	}
-	usleep_range(1000, 2000);
-
-	gpiod_set_value_cansleep(s5k3p9->reset_gpio, 0);
-	usleep_range(9000, 10000);
-
+	pm_runtime_set_active(s5k3p9->dev);
 	pm_runtime_enable(s5k3p9->dev);
-	if (!pm_runtime_enabled(s5k3p9->dev)) {
-		ret = s5k3p9_power_on(s5k3p9->dev);
-		if (ret < 0) {
-			dev_err_probe(s5k3p9->dev, ret, "failed to power on\n");
-			goto err_clean_entity;
-		}
-	}
 
 	ret = v4l2_async_register_subdev(&s5k3p9->subdev);
 	if (ret) {
@@ -2261,13 +2248,14 @@ static int s5k3p9_probe(struct i2c_client *client)
 		goto err_power_off;
 	}
 
+	pm_runtime_idle(s5k3p9->dev);
+
 	return 0;
 
 err_power_off:
-	if (pm_runtime_enabled(s5k3p9->dev))
-		pm_runtime_disable(s5k3p9->dev);
-	else
-		s5k3p9_power_off(s5k3p9->dev);
+	s5k3p9_power_off(s5k3p9->dev);
+	pm_runtime_disable(s5k3p9->dev);
+	pm_runtime_set_suspended(s5k3p9->dev);
 err_clean_entity:
 	media_entity_cleanup(&s5k3p9->subdev.entity);
 err_free_handler:
