@@ -3121,8 +3121,10 @@ static const struct camss_subdev_resources csiphy_res_8550[] = {
  * same CAMSS generation as SM8550: VFE680_110, CSID680_110 and CSIPHY 2.1.3.
  * Unlike SM8550 only CSIPHY0..3 and CSIPHY5 are present; CSIPHY4/6/7 are
  * absent (see evidence/cam-camss-sm8450-map.md).  CSIPHY2/3 use the
- * "m16t" variant in the vendor DT; mainline programs them with the same
- * GEN2 3-phase ops as SM8550, and no stock sensor is wired to them.
+ * "m16t" variant in the vendor DT; mainline still programs them with the
+ * SM8550 GEN2 2.1.2 lane tables (streaming residual).  Stock wiring:
+ * CSIPHY0=IMX355, CSIPHY1=GC02M1, CSIPHY2=OV64B40 (no mainline driver),
+ * CSIPHY3=S5K3P9 — marble DTS enables 0/1/3 only.
  */
 static const struct camss_subdev_resources csiphy_res_sm8450[] = {
 	/* CSIPHY0 */
