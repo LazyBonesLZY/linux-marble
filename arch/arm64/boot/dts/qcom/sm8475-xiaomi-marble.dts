@@ -1706,8 +1706,6 @@
 		reg = <0x1a>;
 		status = "okay";
 
-		power-domains = <&camcc TITAN_TOP_GDSC>;
-
 		clocks = <&camcc CAM_CC_MCLK1_CLK>;
 		assigned-clocks = <&camcc CAM_CC_MCLK1_CLK>;
 		assigned-clock-rates = <19200000>;
@@ -1746,8 +1744,6 @@
 		reg = <0x10>;
 		status = "okay";
 
-		power-domains = <&camcc TITAN_TOP_GDSC>;
-
 		clocks = <&camcc CAM_CC_MCLK5_CLK>;
 		assigned-clocks = <&camcc CAM_CC_MCLK5_CLK>;
 		assigned-clock-rates = <19200000>;
@@ -1782,8 +1778,6 @@
 		compatible = "galaxycore,gc02m1";
 		reg = <0x37>;
 		status = "okay";
-
-		power-domains = <&camcc TITAN_TOP_GDSC>;
 
 		clocks = <&camcc CAM_CC_MCLK0_CLK>;
 		assigned-clocks = <&camcc CAM_CC_MCLK0_CLK>;
